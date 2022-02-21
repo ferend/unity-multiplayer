@@ -7,7 +7,7 @@ public class Menu : MonoBehaviour
     [SerializeField] private GameObject loadingPanel;
     [SerializeField] private GameObject menuPanel;
     [SerializeField] private GameObject createRoomPanel;
-    [SerializeField] private GameObject roomMenu;
+    [SerializeField] public GameObject roomMenu;
     [SerializeField] private GameObject connectToRoomMenu;
 
     public  Text header;

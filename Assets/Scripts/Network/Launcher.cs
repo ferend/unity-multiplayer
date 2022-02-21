@@ -17,8 +17,11 @@ namespace Network
 
         private Dictionary<string, RoomInfo> roomListInfo;
         private Dictionary<string, GameObject> roomListGameObjects;
+        private Dictionary<int, GameObject> playerListGameobjects;
         public GameObject roomlistPrefab;
         public Transform roomListTransform;
+        public GameObject playerListPrefab;
+        public Transform playerListTransform;
 
         public static Launcher Instance
         {
@@ -77,20 +80,53 @@ namespace Network
                      PublishUserId = true
                  };
                 PhotonNetwork.CreateRoom(roomname,roomOpts);
-                Debug.Log("Creating a new room with name : " + roomNameInput.text);
                 Menu.Instance.CloseMenu();
             }
         }
 
         public override void OnCreatedRoom()
         {
-            
+            Debug.Log("Creating a new room with name : " + roomNameInput.text);
+
         }
         public override void OnJoinedRoom()
         {
             Menu.Instance.CloseMenu();
             Menu.Instance.OpenRoomMenu();
+            
+            if (playerListGameobjects == null)
+            {
+                playerListGameobjects = new Dictionary<int, GameObject>();
+
+            }
+            
             Debug.Log(PhotonNetwork.LocalPlayer.NickName + " joined to room name " + PhotonNetwork.CurrentRoom.Name);
+            roomName.text = "Room Name : " + PhotonNetwork.CurrentRoom.Name + " Player / Max Players " +
+                            PhotonNetwork.CurrentRoom.PlayerCount + "/" + PhotonNetwork.CurrentRoom.MaxPlayers;
+            
+            if (PhotonNetwork.LocalPlayer.IsMasterClient)
+            {
+                //playbutton set active
+            }
+            //else
+            
+            foreach (Player player in PhotonNetwork.PlayerList)
+            {
+                GameObject playerListObject = Instantiate(playerListPrefab,playerListTransform);
+                playerListObject.transform.localScale = Vector3.one;
+
+                playerListObject.transform.Find("Text").GetComponent<Text>().text = player.NickName;
+    
+                if (player.ActorNumber == PhotonNetwork.LocalPlayer.ActorNumber)
+                {
+                    playerListObject.transform.Find("Text_1").gameObject.SetActive(true);
+                }
+                else
+                {
+                    playerListObject.transform.Find("Text_1").gameObject.SetActive(false);
+                }
+                playerListGameobjects.Add(player.ActorNumber,playerListObject);
+            }
         }
         
         public override void OnLeftRoom()
@@ -98,6 +134,12 @@ namespace Network
             Debug.Log("Leaving room : " + roomName.text);
             Menu.Instance.CloseMenu();
             Menu.Instance.OpenMenu();
+             foreach (GameObject player in playerListGameobjects.Values)
+             {
+                 Destroy(player);
+             } 
+           playerListGameobjects.Clear();
+            playerListGameobjects= null;
         } 
         
 
@@ -108,6 +150,56 @@ namespace Network
             errMessage.text = "Create room failed! Error type :" + message;
         }
 
+        public override void OnPlayerEnteredRoom(Player newPlayer)
+        {
+            GameObject playerListObject = Instantiate(playerListPrefab,playerListTransform);
+            playerListObject.transform.localScale = Vector3.one;
+
+            playerListObject.transform.Find("Text").GetComponent<Text>().text = newPlayer.NickName;
+    
+            if (newPlayer.ActorNumber == PhotonNetwork.LocalPlayer.ActorNumber)
+            {
+                playerListObject.transform.Find("Text_1").gameObject.SetActive(true);
+            }
+            else
+            {
+                playerListObject.transform.Find("Text_1").gameObject.SetActive(false);
+            }
+            playerListGameobjects.Add(newPlayer.ActorNumber,playerListObject);
+            Debug.Log(PhotonNetwork.LocalPlayer.NickName + " joined to room name " + PhotonNetwork.CurrentRoom.Name);
+            roomName.text = "Room Name : " + PhotonNetwork.CurrentRoom.Name + " Player / Max Players " +
+                            PhotonNetwork.CurrentRoom.PlayerCount + "/" + PhotonNetwork.CurrentRoom.MaxPlayers;
+            
+            
+        }
+        
+        public override void OnPlayerLeftRoom(Player otherPlayer)
+        {
+            Destroy(playerListGameobjects[otherPlayer.ActorNumber].gameObject);
+            playerListGameobjects.Remove(otherPlayer.ActorNumber);
+            Debug.Log(PhotonNetwork.LocalPlayer.NickName + " joined to room name " + PhotonNetwork.CurrentRoom.Name);
+            roomName.text = "Room Name : " + PhotonNetwork.CurrentRoom.Name + " Player / Max Players " +
+                            PhotonNetwork.CurrentRoom.PlayerCount + "/" + PhotonNetwork.CurrentRoom.MaxPlayers;
+
+            if (PhotonNetwork.LocalPlayer.IsMasterClient)
+            {
+                //startbutton setactive
+            }
+        }
+
+        public void OnJoinRandomRoomFailed(short returnCode, string message)
+        {
+            Debug.Log(message);
+            string roomName = "Room " + Random.Range(1000, 10000);
+            RoomOptions roomOpts = new RoomOptions()
+            {
+                IsVisible = true,
+                IsOpen = true,
+                MaxPlayers = 4,
+                PublishUserId = true
+            };
+            PhotonNetwork.CreateRoom(roomName, roomOpts);
+        }
         public override void OnRoomListUpdate(List<RoomInfo> roomList)
         {
           
@@ -163,7 +255,10 @@ namespace Network
         }
 
        public void OnBackButtonClicked()
-        {
+       {
+           
+           PhotonNetwork.LeaveRoom();
+           
             if (PhotonNetwork.InLobby)
             {
                 PhotonNetwork.LeaveLobby();
@@ -172,7 +267,12 @@ namespace Network
             Menu.Instance.OpenMenu();
         }
 
-        void ClearRoomList()
+       public void OnJoinRandomButtonClicked()
+       {
+           PhotonNetwork.JoinRandomRoom();
+
+       }
+       void ClearRoomList()
         {  
             foreach (var roomlistGameObject in roomListGameObjects.Values)
             {
