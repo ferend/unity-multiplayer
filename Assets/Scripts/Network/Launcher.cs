@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 
 using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
 using UnityEngine.UI;
+using Random = UnityEngine.Random;
 
 namespace Network
 {
@@ -13,50 +15,41 @@ namespace Network
         public InputField playerCountInput;
         public Text errMessage;
         public Text roomName;
-        private static Launcher _instance;
 
-        private Dictionary<string, RoomInfo> roomListInfo;
-        private Dictionary<string, GameObject> roomListGameObjects;
-        private Dictionary<int, GameObject> playerListGameobjects;
+        private Dictionary<string, RoomInfo> _roomListInfo;
+        private Dictionary<string, GameObject> _roomListGameObjects;
+        private Dictionary<int, GameObject> _playerListGameobjects;
         public GameObject roomlistPrefab;
         public Transform roomListTransform;
         public GameObject playerListPrefab;
         public Transform playerListTransform;
+        public GameObject startButton;
 
-        public static Launcher Instance
+        private void Awake()
         {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = FindObjectOfType<Launcher>();
-                    if (_instance == null)
-                    {
-                        GameObject singletonGameObject = new GameObject("NetworkManager");
-                        _instance = singletonGameObject.AddComponent<Launcher>();
-                    }
-                }
-
-                return _instance;
-            }
+            PhotonNetwork.ConnectUsingSettings();
+            Debug.Log("Connected using settings");
         }
 
         void Start()
         {
-            PhotonNetwork.ConnectUsingSettings();
-            Debug.Log("Connected to master server");
             Menu.Instance.OpenLoading();
-            roomListInfo = new Dictionary<string, RoomInfo>();
-            roomListGameObjects = new Dictionary<string, GameObject>();
+            _roomListInfo = new Dictionary<string, RoomInfo>();
+            _roomListGameObjects = new Dictionary<string, GameObject>();
             ClearRoomList();
+        }
+
+        private void Update()
+        {
+            Debug.Log(PhotonNetwork.NetworkClientState);
         }
 
         public override void OnConnectedToMaster()
         {
-            PhotonNetwork.JoinLobby();
             base.OnConnectedToMaster();
+            PhotonNetwork.JoinLobby();
+            Debug.Log("Connected to master ");
         }
-        
         public override void OnJoinedLobby()
         {
             Debug.Log("Joined Lobby");
@@ -67,8 +60,10 @@ namespace Network
             Debug.Log("Player name is + " + PhotonNetwork.NickName);
         }
 
+
         public void CreateRoom()
         {
+         
             string roomname = roomNameInput.text;
             if (!string.IsNullOrEmpty(roomNameInput.text))
             {
@@ -94,10 +89,9 @@ namespace Network
             Menu.Instance.CloseMenu();
             Menu.Instance.OpenRoomMenu();
             
-            if (playerListGameobjects == null)
+            if (_playerListGameobjects == null)
             {
-                playerListGameobjects = new Dictionary<int, GameObject>();
-
+                _playerListGameobjects = new Dictionary<int, GameObject>();
             }
             
             Debug.Log(PhotonNetwork.LocalPlayer.NickName + " joined to room name " + PhotonNetwork.CurrentRoom.Name);
@@ -106,9 +100,12 @@ namespace Network
             
             if (PhotonNetwork.LocalPlayer.IsMasterClient)
             {
-                //playbutton set active
+                startButton.SetActive(true);
             }
-            //else
+            else
+            {
+                startButton.SetActive(false);
+            }
             
             foreach (Player player in PhotonNetwork.PlayerList)
             {
@@ -125,31 +122,10 @@ namespace Network
                 {
                     playerListObject.transform.Find("Text_1").gameObject.SetActive(false);
                 }
-                playerListGameobjects.Add(player.ActorNumber,playerListObject);
+                _playerListGameobjects.Add(player.ActorNumber,playerListObject);
             }
         }
         
-        public override void OnLeftRoom()
-        {
-            Debug.Log("Leaving room : " + roomName.text);
-            Menu.Instance.CloseMenu();
-            Menu.Instance.OpenMenu();
-             foreach (GameObject player in playerListGameobjects.Values)
-             {
-                 Destroy(player);
-             } 
-           playerListGameobjects.Clear();
-            playerListGameobjects= null;
-        } 
-        
-
-        public override void OnCreateRoomFailed(short returnCode, string message)
-        {
-            // add another menu comp
-            Debug.Log("Create room failed ");
-            errMessage.text = "Create room failed! Error type :" + message;
-        }
-
         public override void OnPlayerEnteredRoom(Player newPlayer)
         {
             GameObject playerListObject = Instantiate(playerListPrefab,playerListTransform);
@@ -165,28 +141,50 @@ namespace Network
             {
                 playerListObject.transform.Find("Text_1").gameObject.SetActive(false);
             }
-            playerListGameobjects.Add(newPlayer.ActorNumber,playerListObject);
+            _playerListGameobjects.Add(newPlayer.ActorNumber,playerListObject);
+            
             Debug.Log(PhotonNetwork.LocalPlayer.NickName + " joined to room name " + PhotonNetwork.CurrentRoom.Name);
             roomName.text = "Room Name : " + PhotonNetwork.CurrentRoom.Name + " Player / Max Players " +
                             PhotonNetwork.CurrentRoom.PlayerCount + "/" + PhotonNetwork.CurrentRoom.MaxPlayers;
-            
-            
         }
         
+        public override void OnCreateRoomFailed(short returnCode, string message)
+        {
+            // add another menu comp
+            Debug.Log("Create room failed ");
+            errMessage.text = "Create room failed! Error type :" + message;
+        }
+
         public override void OnPlayerLeftRoom(Player otherPlayer)
         {
-            Destroy(playerListGameobjects[otherPlayer.ActorNumber].gameObject);
-            playerListGameobjects.Remove(otherPlayer.ActorNumber);
-            Debug.Log(PhotonNetwork.LocalPlayer.NickName + " joined to room name " + PhotonNetwork.CurrentRoom.Name);
+            Destroy(_playerListGameobjects[otherPlayer.ActorNumber].gameObject);
+            _playerListGameobjects.Remove(otherPlayer.ActorNumber);
+            Debug.Log(PhotonNetwork.LocalPlayer.NickName + " left the room  " + PhotonNetwork.CurrentRoom.Name);
             roomName.text = "Room Name : " + PhotonNetwork.CurrentRoom.Name + " Player / Max Players " +
                             PhotonNetwork.CurrentRoom.PlayerCount + "/" + PhotonNetwork.CurrentRoom.MaxPlayers;
 
             if (PhotonNetwork.LocalPlayer.IsMasterClient)
             {
-                //startbutton setactive
+                startButton.SetActive(true);
             }
         }
+        
+        public override void OnLeftRoom()
+        {
+            base.OnLeftRoom();
+            Debug.Log("Leaving room : " + roomName.text);
+            foreach (var player in _playerListGameobjects.Values)
+            {
+                Destroy(player);
+            } 
+            _playerListGameobjects.Clear();
+            _playerListGameobjects = null;
+        } 
 
+        public void OnJoinRandomButtonClicked()
+        {
+            PhotonNetwork.JoinRandomRoom();
+        }
         public void OnJoinRandomRoomFailed(short returnCode, string message)
         {
             Debug.Log(message);
@@ -195,7 +193,6 @@ namespace Network
             {
                 IsVisible = true,
                 IsOpen = true,
-                MaxPlayers = 4,
                 PublishUserId = true
             };
             PhotonNetwork.CreateRoom(roomName, roomOpts);
@@ -207,33 +204,33 @@ namespace Network
             {
                Debug.Log("Room list updated new room name : " + room.Name);
 
-               if ((!room.IsOpen || !room.IsVisible || room.RemovedFromList) && roomListInfo.ContainsKey(room.Name))
+               if ((!room.IsOpen || !room.IsVisible || room.RemovedFromList) && _roomListInfo.ContainsKey(room.Name))
                {
-                   roomListInfo.Remove(room.Name);
+                   _roomListInfo.Remove(room.Name);
                }
                else
                {
                    // update room list in new entry
-                   if (roomListInfo.ContainsKey(room.Name))
+                   if (_roomListInfo.ContainsKey(room.Name))
                    {
-                       roomListInfo[room.Name] = room;
+                       _roomListInfo[room.Name] = room;
                    }
                    // add new room to room list
                    else
                    {
-                       roomListInfo.Add(room.Name,room);
+                       _roomListInfo.Add(room.Name,room);
                    }
                }
             }
 
-            foreach (RoomInfo room in roomListInfo.Values)
+            foreach (var room in _roomListInfo.Values)
             {
-                GameObject roomListObject = Instantiate(roomlistPrefab, roomListTransform, true);
+                var roomListObject = Instantiate(roomlistPrefab, roomListTransform, true);
                 roomListObject.transform.localScale = new Vector3(1, 1, 1);
                 roomListObject.transform.Find("Text").GetComponent<Text>().text = room.Name;
                 roomListObject.GetComponent<Button>().onClick.AddListener((() => OnJoinRoomButtonClicked(room.Name)));
                 
-                roomListGameObjects.Add(room.Name,roomListObject);
+                _roomListGameObjects.Add(room.Name,roomListObject);
             }
 
         }
@@ -241,10 +238,14 @@ namespace Network
         public override void OnLeftLobby()
         {
             ClearRoomList();
-            roomListInfo.Clear();
-            Debug.Log("Left the lobby ");
+            _roomListInfo.Clear();
+            Debug.Log("Left the lobby");
         }
+        public void OnJoinRandomRoomButtonClicked()
+        {
+            PhotonNetwork.JoinRandomRoom();
 
+        }
         void OnJoinRoomButtonClicked(string _roomName)
         {
             if (PhotonNetwork.InLobby)
@@ -254,31 +255,28 @@ namespace Network
             PhotonNetwork.JoinRoom(_roomName);
         }
 
-       public void OnBackButtonClicked()
+        void OnBackButtonClicked()
        {
-           
-           PhotonNetwork.LeaveRoom();
-           
-            if (PhotonNetwork.InLobby)
+           if (PhotonNetwork.InLobby)
             {
                 PhotonNetwork.LeaveLobby();
             }
-            Menu.Instance.CloseMenu();
+
+           if (PhotonNetwork.InRoom) 
+           {
+               PhotonNetwork.LeaveRoom();
+           }
+           Menu.Instance.CloseMenu();
             Menu.Instance.OpenMenu();
         }
-
-       public void OnJoinRandomButtonClicked()
-       {
-           PhotonNetwork.JoinRandomRoom();
-
-       }
+       
        void ClearRoomList()
         {  
-            foreach (var roomlistGameObject in roomListGameObjects.Values)
+            foreach (var roomlistGameObject in _roomListGameObjects.Values)
             {
                 Destroy(roomlistGameObject);
             }
-            roomListGameObjects.Clear();
+            _roomListGameObjects.Clear();
             
         }
     }
