@@ -32,10 +32,14 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        PlayerRotation();
+        rb.MovePosition(rb.position + transform.TransformDirection(moveAmount) * Time.fixedDeltaTime);
     }
-    
-        
+
+    private void Update()
+    {
+        PlayerRotation();
+        PlayerMovement();
+    }
     public void PlayerRotation()
     {
         //var mousePos = playerCam.ScreenToWorldPoint(Input.mousePosition);
@@ -54,7 +58,7 @@ public class PlayerController : MonoBehaviour
 
          if (Input.GetKeyDown(KeyCode.Space) && grounded)
          {
-             rb.AddForce(transform.up*10);
+             rb.AddForce(transform.up * 200 );
          }
     }
 
