@@ -37,11 +37,7 @@ namespace Network
             _roomListInfo = new Dictionary<string, RoomInfo>();
             _roomListGameObjects = new Dictionary<string, GameObject>();
             ClearRoomList();
-        }
-
-        private void Update()
-        {
-            Debug.Log(PhotonNetwork.NetworkClientState);
+            PhotonNetwork.AutomaticallySyncScene = true;
         }
 
         public override void OnConnectedToMaster()
@@ -180,10 +176,13 @@ namespace Network
             _playerListGameobjects.Clear();
             _playerListGameobjects = null;
         } 
-
-        public void OnJoinRandomButtonClicked()
+        public void OnJoinRandomRoomButtonClicked()
         {
             PhotonNetwork.JoinRandomRoom();
+            Debug.Log("Joining to randon room");
+            Menu.Instance.CloseMenu();
+            Menu.Instance.OpenRoomMenu();
+
         }
         public void OnJoinRandomRoomFailed(short returnCode, string message)
         {
@@ -241,11 +240,7 @@ namespace Network
             _roomListInfo.Clear();
             Debug.Log("Left the lobby");
         }
-        public void OnJoinRandomRoomButtonClicked()
-        {
-            PhotonNetwork.JoinRandomRoom();
-
-        }
+ 
         void OnJoinRoomButtonClicked(string _roomName)
         {
             if (PhotonNetwork.InLobby)
@@ -268,6 +263,14 @@ namespace Network
            }
            Menu.Instance.CloseMenu();
             Menu.Instance.OpenMenu();
+        }
+
+        public void OnStartGameButtonClicked()
+        {
+            if (PhotonNetwork.IsMasterClient)
+            {
+                PhotonNetwork.LoadLevel("Game");
+            }
         }
        
        void ClearRoomList()
