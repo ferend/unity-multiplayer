@@ -12,7 +12,6 @@ public class PlayerManager : MonoBehaviour
 
         if (pv.IsMine)
         {
-            CreateController();
         }
     }
 
@@ -21,9 +20,5 @@ public class PlayerManager : MonoBehaviour
     {
         
     }
-
-    void CreateController()
-    {
-        
-    }
+    
 }

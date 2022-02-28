@@ -11,7 +11,8 @@ public class NetworkManager : MonoBehaviour
     {
         if (PhotonNetwork.IsConnectedAndReady)
         {
-            PhotonNetwork.Instantiate(player.name,new Vector3(10,21,-8),Quaternion.identity);
+            int randomPoisition = Random.Range(10, 20);
+            PhotonNetwork.Instantiate(player.name,new Vector3(randomPoisition,21,-8),Quaternion.identity);
         }
     }
 
