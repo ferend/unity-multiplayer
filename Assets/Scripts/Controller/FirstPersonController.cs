@@ -1,10 +1,9 @@
-﻿
-using Photon.Pun;
+﻿using Photon.Pun;
+using Photon.Realtime;
 using UnityEngine;
 using UnityEngine.UI;
-
-
-public class FirstPersonController : MonoBehaviour
+using Hashtable = ExitGames.Client.Photon.Hashtable;
+public class FirstPersonController : MonoBehaviourPunCallbacks
 {
     private Rigidbody rb;
 
@@ -87,6 +86,9 @@ public class FirstPersonController : MonoBehaviour
 
     private PhotonView pv;
 
+    [SerializeField] private Item[] items;
+    private int _itemIndex;
+    private int _previousItemIndex = -1;
     private void Awake()
     {
         pv = GetComponent<PhotonView>();
@@ -132,7 +134,7 @@ public class FirstPersonController : MonoBehaviour
         }
     }
 
-    float camRotation;
+    float _camRotation;
 
     private void Update()
     {
@@ -294,15 +296,32 @@ public class FirstPersonController : MonoBehaviour
         {
             HeadBob();
         }
+        for (int i = 0; i < items.Length; i++)
+        {
+            if(Input.GetKeyDown((i+1).ToString()))
+            {
+                EquipItem(i);
+                break;
+            }
+        }
+        
+        UseGun();
+    }
+    public override void OnPlayerPropertiesUpdate(Player targetPlayer, Hashtable changedProps)
+    {
+        if (!pv.IsMine && targetPlayer == pv.Owner)
+        {
+            EquipItem((int)changedProps[nameof(_itemIndex)]);
+        }
     }
 
-    void FixedUpdate()
+    private void FixedUpdate()
     {
         if (!pv.IsMine)
             return;
            
         #region Movement
-            if (playerCanMove)
+        if (playerCanMove)
         {
             // Calculate how fast we should be moving
             Vector3 targetVelocity = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
@@ -372,7 +391,7 @@ public class FirstPersonController : MonoBehaviour
     {
         Vector3 origin = new Vector3(transform.position.x, transform.position.y - (transform.localScale.y * .5f), transform.position.z);
         Vector3 direction = transform.TransformDirection(Vector3.down);
-        float distance = .75f;
+        var distance = .75f;
 
         if (Physics.Raycast(origin, direction, out RaycastHit hit, distance))
         {
@@ -420,6 +439,35 @@ public class FirstPersonController : MonoBehaviour
             walkSpeed *= speedReduction;
 
             isCrouched = true;
+        }
+    }
+
+    private void EquipItem(int index)
+    {
+        if(index == _previousItemIndex)
+            return;
+        _itemIndex = index;
+        items[_itemIndex].itemGameObject.SetActive(true);
+
+        if (_previousItemIndex != -1)
+        {
+            items[_previousItemIndex].itemGameObject.SetActive(false);
+        }
+        _previousItemIndex = _itemIndex;
+
+        if (pv.IsMine)
+        {
+            Hashtable hash = new Hashtable();
+            hash.Add(nameof(_itemIndex),_itemIndex);
+            PhotonNetwork.LocalPlayer.SetCustomProperties(hash);
+        }
+    }
+
+    public void UseGun()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            items[_itemIndex].Use();
         }
     }
 
