@@ -1,9 +1,10 @@
-﻿using Photon.Pun;
+﻿using Managers;
+using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
 using UnityEngine.UI;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
-public class FirstPersonController : MonoBehaviourPunCallbacks
+public class FirstPersonController : MonoBehaviourPunCallbacks,IDamageable
 {
     private Rigidbody rb;
 
@@ -89,6 +90,9 @@ public class FirstPersonController : MonoBehaviourPunCallbacks
     [SerializeField] private Item[] items;
     private int _itemIndex;
     private int _previousItemIndex = -1;
+    public PlayerManager playerManager;
+    public Image healthBar;
+    public GameObject playerUI;
     private void Awake()
     {
         pv = GetComponent<PhotonView>();
@@ -107,6 +111,7 @@ public class FirstPersonController : MonoBehaviourPunCallbacks
             sprintRemaining = sprintDuration;
             sprintCooldownReset = sprintCooldown;
         }
+
     }
 
     void Start()
@@ -131,6 +136,7 @@ public class FirstPersonController : MonoBehaviourPunCallbacks
         else
         {
             playerCamera.enabled = false;
+            Destroy(playerUI);
         }
     }
 
@@ -306,6 +312,8 @@ public class FirstPersonController : MonoBehaviourPunCallbacks
         }
         
         UseGun();
+        
+        // die if you get below a certain y point
     }
     public override void OnPlayerPropertiesUpdate(Player targetPlayer, Hashtable changedProps)
     {
@@ -441,36 +449,7 @@ public class FirstPersonController : MonoBehaviourPunCallbacks
             isCrouched = true;
         }
     }
-
-    private void EquipItem(int index)
-    {
-        if(index == _previousItemIndex)
-            return;
-        _itemIndex = index;
-        items[_itemIndex].itemGameObject.SetActive(true);
-
-        if (_previousItemIndex != -1)
-        {
-            items[_previousItemIndex].itemGameObject.SetActive(false);
-        }
-        _previousItemIndex = _itemIndex;
-
-        if (pv.IsMine)
-        {
-            Hashtable hash = new Hashtable();
-            hash.Add(nameof(_itemIndex),_itemIndex);
-            PhotonNetwork.LocalPlayer.SetCustomProperties(hash);
-        }
-    }
-
-    public void UseGun()
-    {
-        if (Input.GetMouseButtonDown(0))
-        {
-            items[_itemIndex].Use();
-        }
-    }
-
+    
     private void HeadBob()
     {
         if(isWalking)
@@ -500,6 +479,57 @@ public class FirstPersonController : MonoBehaviourPunCallbacks
             joint.localPosition = new Vector3(Mathf.Lerp(joint.localPosition.x, jointOriginalPos.x, Time.deltaTime * bobSpeed), Mathf.Lerp(joint.localPosition.y, jointOriginalPos.y, Time.deltaTime * bobSpeed), Mathf.Lerp(joint.localPosition.z, jointOriginalPos.z, Time.deltaTime * bobSpeed));
         }
     }
+    
+    private void EquipItem(int index)
+    {
+        if(index == _previousItemIndex)
+            return;
+        _itemIndex = index;
+        items[_itemIndex].itemGameObject.SetActive(true);
+
+        if (_previousItemIndex != -1)
+        {
+            items[_previousItemIndex].itemGameObject.SetActive(false);
+        }
+        _previousItemIndex = _itemIndex;
+
+        if (pv.IsMine)
+        {
+            Hashtable hash = new Hashtable();
+            hash.Add(nameof(_itemIndex),_itemIndex);
+            PhotonNetwork.LocalPlayer.SetCustomProperties(hash);
+        }
+    }
+
+    private void UseGun()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            items[_itemIndex].Use();
+        }
+    }
+
+    public void TakeDamage(float damageAmount)
+    {
+        pv.RPC(nameof(RPC_TakeDamage),RpcTarget.All,damageAmount);
+    }
+
+    [PunRPC]
+    void RPC_TakeDamage(float damage)
+    {
+        if (!pv.IsMine)
+            return;
+        playerManager.currentHealth -= damage;
+        healthBar.fillAmount = playerManager.currentHealth / playerManager.maxHealth;
+       
+        if (playerManager.currentHealth <= 0)
+        {
+            playerManager.PlayerDeath();
+        }
+
+    }
+
+
 }
 
 

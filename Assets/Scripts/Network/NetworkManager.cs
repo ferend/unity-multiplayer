@@ -1,24 +1,34 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using Photon.Pun;
+using Random = UnityEngine.Random;
 
 public class NetworkManager : MonoBehaviour
 {
-    public GameObject player;
-    // Start is called before the first frame update
+    public GameObject playerPrefab;
+    public static NetworkManager Instance;
+    public SpawnPoint[] spawnPoints;
+    
+    private void Awake()
+    {
+        if(Instance == null)
+            Instance = this;
+        else
+            Destroy(this);
+
+    }
+
     void Start()
     {
         if (PhotonNetwork.IsConnectedAndReady)
         {
-            int randomPoisition = Random.Range(10, 20);
-            PhotonNetwork.Instantiate(player.name,new Vector3(randomPoisition,21,-8),Quaternion.identity);
+            var randomSpawnPoints = GetSpawnPoint();
+            PhotonNetwork.Instantiate(playerPrefab.name,randomSpawnPoints.position,Quaternion.identity);
         }
+        
     }
 
-    // Update is called once per frame
-    void Update()
+    public Transform GetSpawnPoint()
     {
-        
+        return spawnPoints[Random.Range(0, spawnPoints.Length)].transform;
     }
 }
